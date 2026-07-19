@@ -15,12 +15,8 @@ from playwright.async_api import async_playwright
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI()
+# Standard mount pattern for python-socketio v5
 app.mount("/socket.io", socketio.ASGIApp(sio))
-
-# Quick health check route — Railway needs a 200 on /
-@app.on_event("startup")
-async def startup_check():
-    print("[health] Server is alive", flush=True)
 
 # ── DB ──────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "pandora.db")
@@ -307,6 +303,10 @@ async def disconnect(sid):
 @app.get("/")
 async def index():
     return HTMLResponse(FRONTEND_HTML)
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 FRONTEND_HTML = """<!DOCTYPE html>
 <html lang="en">
