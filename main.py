@@ -15,8 +15,9 @@ from playwright.async_api import async_playwright
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI()
-app.add_route("/socket.io/", socketio.ASGIApp(sio, other_app=app))
-# actual socket.io path is handled by the ASGIApp — mount at root
+# mount socket.io as a Starlette sub-app (python-socketio v5)
+import starlette.routing
+app.mount("/socket.io/", socketio.ASGIApp(sio))
 
 # ── DB ──────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "pandora.db")
