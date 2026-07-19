@@ -15,8 +15,12 @@ from playwright.async_api import async_playwright
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI()
-# Socket.IO ASGI app wraps FastAPI — /socket.io goes to Socket.IO, everything else to FastAPI
-sio_asgi = socketio.ASGIApp(sio, app)
+app.mount("/socket.io", socketio.ASGIApp(sio))
+
+# Quick health check route — Railway needs a 200 on /
+@app.on_event("startup")
+async def startup_check():
+    print("[health] Server is alive", flush=True)
 
 # ── DB ──────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "pandora.db")
@@ -477,4 +481,4 @@ socket.on("disconnect", () => {
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run("main:sio_asgi", host="0.0.0.0", port=port)
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
