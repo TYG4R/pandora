@@ -15,8 +15,11 @@ from playwright.async_api import async_playwright
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI()
-# Standard mount pattern for python-socketio v5
-app.mount("/socket.io", socketio.ASGIApp(sio))
+# Mount socket.io at a sub-path — won't interfere with root health checks
+try:
+    app.mount("/socket.io", socketio.ASGIApp(sio))
+except Exception:
+    print("[warn] socket.io mount failed, continuing without", flush=True)
 
 # ── DB ──────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "pandora.db")
