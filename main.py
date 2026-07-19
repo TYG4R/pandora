@@ -10,13 +10,11 @@ from urllib.parse import urljoin, urlparse
 import socketio
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from playwright.async_api import async_playwright
 
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_route("/socket.io/", socketio.ASGIApp(sio, other_app=app))
 # actual socket.io path is handled by the ASGIApp — mount at root
 
