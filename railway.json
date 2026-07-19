@@ -5,7 +5,7 @@
     "buildCommand": "playwright install chromium 2>&1 | tail -3"
   },
   "deploy": {
-    "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT --timeout-keep-alive 120",
+    "startCommand": "uvicorn main:sio_asgi --host 0.0.0.0 --port $PORT --timeout-keep-alive 120",
     "restartPolicyType": "ON_FAILURE"
   }
 }

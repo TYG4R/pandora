@@ -14,12 +14,10 @@ from playwright.async_api import async_playwright
 
 # ── sio ─────────────────────────────────────────────────────────────
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-app = FastAPI()
-# Mount socket.io at a sub-path — won't interfere with root health checks
-try:
-    app.mount("/socket.io", socketio.ASGIApp(sio))
-except Exception:
-    print("[warn] socket.io mount failed, continuing without", flush=True)
+fastapi_app = FastAPI()
+app = fastapi_app  # alias so existing decorators work
+# Combined ASGI app: socket.io handles its own paths, FastAPI handles everything else
+sio_asgi = socketio.ASGIApp(sio, fastapi_app)
 
 # ── DB ──────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(__file__), "pandora.db")
@@ -484,4 +482,4 @@ socket.on("disconnect", () => {
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.run("main:sio_asgi", host="0.0.0.0", port=port)
