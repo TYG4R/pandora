@@ -383,25 +383,41 @@ async def _try_login(page, url: str, sid: str):
     return False
 
 async def _detect_captcha(page, sid: str) -> bool:
-    """Detect common captcha patterns and pause crawl for human intervention."""
-    captcha_indicators = [
-        "#captcha", ".captcha", "iframe[src*='captcha']", "iframe[src*='recaptcha']",
-        "iframe[src*='hcaptcha']", "[data-sitekey]", ".g-recaptcha"
-    ]
-    for sel in captcha_indicators:
-        el = await page.query_selector(sel)
-        if el:
+    """Detect captcha via strict indicators.  Returns True if captcha is confirmed."""
+    # Quick check for recaptcha/hcaptcha badge/iframe (the real thing)
+    try:
+        has_recaptcha = await page.evaluate("""() => {
+            const els = document.querySelectorAll('script[src*="recaptcha"], .g-recaptcha, iframe[src*="recaptcha/api"], iframe[src*="hcaptcha"]');
+            return els.length > 0;
+        }""")
+        if has_recaptcha:
+            # Double-check: a visible recaptcha iframe means it's actually challenging
+            visible = await page.evaluate("""() => {
+                const ifr = document.querySelector('iframe[src*="recaptcha/api"], iframe[src*="hcaptcha"]');
+                if (!ifr) return false;
+                const rect = ifr.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            }""")
+            if not visible:
+                # recaptcha script loaded but badge not visible — not blocking
+                return False
             _state.waiting_captcha = True
             _state.captcha_resolved.clear()
-            await emit_log(sid, "⚠ CAPTCHA detected! waiting for human to solve...", "log-bug")
+            await emit_log(sid, "⚠ reCAPTCHA detected — waiting for human to solve", "log-bug")
             await sio.emit("captcha_needed", {
                 "url": page.url,
                 "screenshot": base64.b64encode(await page.screenshot()).decode()
             }, to=sid)
             await emit_state(sid)
-
-            await _state.captcha_resolved.wait()
+            # Wait up to 120s for human to solve
+            try:
+                await asyncio.wait_for(_state.captcha_resolved.wait(), timeout=120)
+            except asyncio.TimeoutError:
+                await emit_log(sid, "captcha timeout — skipping page", "log-warn")
             return True
+    except Exception:
+        pass
+    return False
     return False
 
 async def _inject_monitor(page):
